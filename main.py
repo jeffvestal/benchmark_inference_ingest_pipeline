@@ -227,7 +227,7 @@ if __name__ == '__main__':
         #tmp = configString, ": ", elapsed_time / 1000000000, "seconds (", elapsed_time, " nanos), max thro"
         tmp = ','.join(map(str, (configString, elapsed_time / 1000000000, elapsed_time, inf_max, tp_max, indexName)))
         tmpResults.append(tmp)
-        #print(tmp)
+        print(tmp)
 
     print('Done with configuration options')
     #print(tmpResults)
