@@ -30,7 +30,7 @@ def update_model_settings(es, model_id, at, cache='0b'):
                                                     number_of_allocations = at[0],
                                                     threads_per_allocation = at[1],
                                                     wait_for='started',
-                                                    timeout='1m'
+                                                    timeout='7m'
                                                    )
 
     return
@@ -163,11 +163,11 @@ if __name__ == '__main__':
         print(reindexResponse)
 
         # wait for _reindex to complete
-        lapsed_time = wait_until_ingest_complete(es, reindexResponse)
+        elapsed_time = wait_until_ingest_complete(es, reindexResponse)
         tmp = configString, ": ", elapsed_time / 1000000000, "seconds (", elapsed_time, " nanos)"
         tmpResults.append(tmp)
         print(tmp)
         
     with open(results, "w") as file:
-        file.writelines("\n".join(tmpResults))    
+        file.writelines('\n'.join([''.join(map(str, x)) for x in tmpResults]))    
     print('Done')
