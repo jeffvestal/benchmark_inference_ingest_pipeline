@@ -158,7 +158,8 @@ if __name__ == '__main__':
                    '_reindex running_time_in_nanos in seconds',
                    '_reindex running_time_in_nanos',
                    'max average_inference_time_ms_last_minute',
-                   'max throughput_last_minute')
+                   'max throughput_last_minute',
+                    'destination index name')
     tmpResults = [','.join(header)]
 
     # setup elastic cloud connection
@@ -224,9 +225,7 @@ if __name__ == '__main__':
         #print(tp_max)
 
         #tmp = configString, ": ", elapsed_time / 1000000000, "seconds (", elapsed_time, " nanos), max thro"
-        tmp = ','.join(
-            map(str, (configString, elapsed_time / 1000000000, elapsed_time,
-                      inf_max, tp_max)))
+        tmp = ','.join(map(str, (configString, elapsed_time / 1000000000, elapsed_time, inf_max, tp_max, indexName)))
         tmpResults.append(tmp)
         #print(tmp)
 
