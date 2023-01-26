@@ -6,7 +6,6 @@ and different allocation and threads per allocations settings
 from elasticsearch import Elasticsearch, helpers
 from elasticsearch.client import MlClient
 import os
-import timeit
 
 
 def esConnect(cid, user, passwd):
@@ -59,7 +58,7 @@ def create_new_index(es, index_name):
         return 
 
 
-def start_reindex(es, source, destination):
+def start_reindex(es, source, destination, pipe):
     '''kick off _reindex'''
 
     request_body = {
@@ -67,21 +66,32 @@ def start_reindex(es, source, destination):
             "index": source
         },
         "dest": {
-            "index": destination
+            "index": destination,
+            "pipeline" : pipe
         }
     }
     
     # Execute the reindex operation
-    thread = es.reindex(body=request_body)
-    
+    response = es.reindex(body=request_body, wait_for_completion=False)
 
+    return response
 
-def wait_until_ingest_complete(threadID, wait=10):
+def wait_until_ingest_complete(response, wait=5):
     '''
     poll every 'wait' seconds, return when reindex thread is complete
     default wait = 10 seconds
+
     '''
-    pass
+    while True:
+    task_info = es.tasks.get(task_id=task_id)
+    if task_info['completed']:
+        #print("Task completed!")
+        break
+    else:
+        #print("Task not completed, waiting...")
+        time.sleep(wait)
+
+    return(task_info['running_time_in_nanos'])
 
 
 if __name__ == '__main__':
@@ -105,7 +115,7 @@ if __name__ == '__main__':
     ]
 
     # set source index name
-    sourceIndex = ''
+    sourceIndex = 'pii_test-no_redaction'
     
     # set the base name of the test index set - reindexName__pipelineName__AxT
     reindexName = 'pii_test_v2'
@@ -138,7 +148,7 @@ if __name__ == '__main__':
         update_model_settings(es, modelID, at)
         
         # kickoff _reindex
-        elapsed_time = timeit.timeit(start_reindex(), number=1)
-        print(configString, ": ", elapsed_time, "seconds")
+        elapsed_time = start_reindex(es, sourceIndex, indexName, pipelineName)
+        print(configString, ": ", elapsed_time / 1000000000, "seconds (", elapsed_time, " nanos)")
 
-    
+    print('Done')
