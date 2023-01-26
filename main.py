@@ -6,6 +6,7 @@ and different allocation and threads per allocations settings
 from elasticsearch import Elasticsearch, helpers
 from elasticsearch.client import MlClient
 import os
+import time
 
 
 def esConnect(cid, user, passwd):
@@ -16,19 +17,19 @@ def esConnect(cid, user, passwd):
     
     return es
 
-def update_model_settings(es, model_id, cache, at):
+def update_model_settings(es, model_id, at, cache='0b'):
     '''update the model allocation and threads per allocation'''
 
     # Don't have to stop when only updating allocation but its quick enough to do it everytime for now
-    stop = MlClient.stop_trained_model_deployment(es, model_id=model_id)
+    stop = MlClient.stop_trained_model_deployment(es, model_id=model_id, force=True)
     
     start = MlClient.start_trained_model_deployment(es, 
                                                     model_id=model_id, 
-                                                    cache_size = '0b',
+                                                    cache_size = cache,
                                                     number_of_allocations = at[0],
                                                     threads_per_allocation = at[1],
-                                                    wait_for=started,
-                                                    timeout=1m
+                                                    wait_for='started',
+                                                    timeout='1m'
                                                    )
 
     return
@@ -49,8 +50,7 @@ def create_new_index(es, index_name):
     # may want to set the mapping
     
     response = es.indices.create(index=index_name, body=index_settings)
-    status_code = response.status_code
-    if status_code != 200:
+    if not response['acknowledged']:
         response_content = response.json()
         print(response_content)
         sys.exit()
@@ -83,23 +83,23 @@ def wait_until_ingest_complete(es, response, wait=5):
 
     '''
     while True:
-    task_info = es.tasks.get(task_id=task_id)
-    if task_info['completed']:
-        #print("Task completed!")
-        break
-    else:
-        #print("Task not completed, waiting...")
-        time.sleep(wait)
-
+        task_info = es.tasks.get(task_id=response['task'])
+        if task_info['completed']:
+            #print("Task completed!")
+            break
+        else:
+            #print("Task not completed, waiting...")
+            time.sleep(wait)
+    
     return(task_info['running_time_in_nanos'])
 
 
 if __name__ == '__main__':
     
     # setup elastic cloud connection
-    es_cloud_id = os.environ('es_cloud_id')
-    es_cloud_user = os.environ('es_cloud_user')
-    es_cloud_pass = os.environ('es_cloud_pass')
+    es_cloud_id = os.environ['es_cloud_id']
+    es_cloud_user = os.environ['es_cloud_user']
+    es_cloud_pass = os.environ['es_cloud_pass']
 
     
     # set the test pairs of allocations and threads per allocation on the supervised model
@@ -134,11 +134,12 @@ if __name__ == '__main__':
 
     # Make go now
     for at in allocation_threadsPer:
-        configString = 'x'.join(map(str, at)
+        configString = 'x'.join(map(str, at))
+        
         # create new index name
         indexName = '__'.join([reindexName, 
                                pipelineName, 
-                               configString)
+                               configString
                               ])
 
         # create new index
