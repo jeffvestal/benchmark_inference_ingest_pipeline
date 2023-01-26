@@ -76,7 +76,7 @@ def start_reindex(es, source, destination, pipe):
 
     return response
 
-def wait_until_ingest_complete(response, wait=5):
+def wait_until_ingest_complete(es, response, wait=5):
     '''
     poll every 'wait' seconds, return when reindex thread is complete
     default wait = 10 seconds
@@ -148,7 +148,10 @@ if __name__ == '__main__':
         update_model_settings(es, modelID, at)
         
         # kickoff _reindex
-        elapsed_time = start_reindex(es, sourceIndex, indexName, pipelineName)
+        reindexResponse = start_reindex(es, sourceIndex, indexName, pipelineName)
+
+        # wait for _reindex to complete
+        elapsed_time = wait_until_ingest_complete(es, reindexResponse)
         print(configString, ": ", elapsed_time / 1000000000, "seconds (", elapsed_time, " nanos)")
 
     print('Done')
