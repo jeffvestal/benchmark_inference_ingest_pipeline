@@ -7,6 +7,7 @@ from elasticsearch import Elasticsearch, helpers
 from elasticsearch.client import MlClient
 import os
 import time
+from datetime import datetime
 
 
 def esConnect(cid, user, passwd):
@@ -48,6 +49,8 @@ def create_new_index(es, index_name):
     }
 
     # may want to set the mapping
+
+    print(index_name)
     
     response = es.indices.create(index=index_name, body=index_settings)
     if not response['acknowledged']:
@@ -72,7 +75,7 @@ def start_reindex(es, source, destination, pipe):
     }
     
     # Execute the reindex operation
-    response = es.reindex(body=request_body, wait_for_completion=False)
+    response = es.reindex(body=request_body, wait_for_completion=False, max_docs=10000)
 
     return response
 
@@ -90,11 +93,16 @@ def wait_until_ingest_complete(es, response, wait=5):
         else:
             #print("Task not completed, waiting...")
             time.sleep(wait)
-    
-    return(task_info['running_time_in_nanos'])
+
+    print(task_info)
+    return(task_info['task']['running_time_in_nanos'])
 
 
 if __name__ == '__main__':
+
+    # file output results name
+    results = 'pipeline-results__' + str(datetime.now())
+    tmpResults = []
     
     # setup elastic cloud connection
     es_cloud_id = os.environ['es_cloud_id']
@@ -104,11 +112,11 @@ if __name__ == '__main__':
     
     # set the test pairs of allocations and threads per allocation on the supervised model
     allocation_threadsPer = [
+        [1,8],
         [1,1],
         [4,1],
         [8,1],
         [1,4],
-        [1,8],
         [2,8],
         [4,4],
         [16,1]
@@ -134,6 +142,7 @@ if __name__ == '__main__':
 
     # Make go now
     for at in allocation_threadsPer:
+        print(at)
         configString = 'x'.join(map(str, at))
         
         # create new index name
@@ -142,6 +151,7 @@ if __name__ == '__main__':
                                configString
                               ])
 
+        tmpResults.append(indexName)
         # create new index
         create_new_index(es,indexName)
 
@@ -150,9 +160,14 @@ if __name__ == '__main__':
         
         # kickoff _reindex
         reindexResponse = start_reindex(es, sourceIndex, indexName, pipelineName)
+        print(reindexResponse)
 
         # wait for _reindex to complete
-        elapsed_time = wait_until_ingest_complete(es, reindexResponse)
-        print(configString, ": ", elapsed_time / 1000000000, "seconds (", elapsed_time, " nanos)")
-
+        lapsed_time = wait_until_ingest_complete(es, reindexResponse)
+        tmp = configString, ": ", elapsed_time / 1000000000, "seconds (", elapsed_time, " nanos)"
+        tmpResults.append(tmp)
+        print(tmp)
+        
+    with open(results, "w") as file:
+        file.writelines("\n".join(tmpResults))    
     print('Done')
