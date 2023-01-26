@@ -168,13 +168,13 @@ if __name__ == '__main__':
 
     # set the test pairs of allocations and threads per allocation on the supervised model
     allocation_threadsPer = [
-        #[1,8],
-        #[1,1],
-        #[4,1],
+        [1,8],
+        [1,1],
+        [4,1],
         [8, 1],
-        #[1,4],
-        #[2,8],
-        #[4,4],
+        [1,4],
+        [2,8],
+        [4,4],
         [16, 1]
     ]
 
