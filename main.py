@@ -291,7 +291,8 @@ if __name__ == '__main__':
         resultsCollector[configString] = {'running_time_in_nanos' : elapsed_time, 
                                           'nodesReport' : nodesReport,
                                           'allocations' : at[0],
-                                          'threads per allocation' : at[1]
+                                          'threads per allocation' : at[1],
+                                          'elapsed time seconds' : elapsed_time
                                          }
 
     
@@ -307,12 +308,12 @@ if __name__ == '__main__':
         for func in funcKeys:
             header.append(func + '( ' + met + ' )')
     header = ','.join(header)
-    header += '\n
+    header += '\n'
         
 
     for key in resultsCollector:
         resultsStr += key
-        resultsStr += ',%.2f' % (elapsed_time / 1000000000)
+        resultsStr += ',%.2f' % (str(resultsCollector[key]['elapsed time seconds'] / 1000000000)
         resultsStr += ',' + str(resultsCollector[key]['allocations'])
         resultsStr += ',' + str(resultsCollector[key]['threads per allocation'])
         
