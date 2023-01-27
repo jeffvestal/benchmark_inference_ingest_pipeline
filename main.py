@@ -313,7 +313,7 @@ if __name__ == '__main__':
 
     for key in resultsCollector:
         resultsStr += key
-        resultsStr += ',%.2f' % (str(resultsCollector[key]['elapsed time seconds'] / 1000000000)
+        resultsStr += ',%.2f' % (str(resultsCollector[key]['elapsed time seconds'] / 1000000000))
         resultsStr += ',' + str(resultsCollector[key]['allocations'])
         resultsStr += ',' + str(resultsCollector[key]['threads per allocation'])
         
@@ -326,11 +326,11 @@ if __name__ == '__main__':
 
         resultsStr += '\n'
 
-    with open(results + .csv, "w") as c_file:
+    with open(results + '.csv', "w") as c_file:
         c_file.writelines(header)
         c_file.writelines(resultsStr)
 
-    with open(results + .json, "w") as j_file:
+    with open(results + '.json', "w") as j_file:
         json.dump(resultsCollector, j_file)
 
 
