@@ -279,7 +279,7 @@ if __name__ == '__main__':
 
         # wait for _reindex to complete
         elapsed_time, nodesReport = wait_until_ingest_complete(
-            es, reindexResponse, modelID, metrics)
+            es, reindexResponse, modelID, metrics, funcs)
 
         #nodesReport['running_time_in_nanos']
         print()
