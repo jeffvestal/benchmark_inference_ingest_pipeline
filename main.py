@@ -3,11 +3,13 @@ test inference processor pipeline using _reindex
 and different allocation and threads per allocations settings
 '''
 
-from elasticsearch import Elasticsearch, helpers
+from elasticsearch import Elasticsearch
 from elasticsearch.client import MlClient
 import os
+import sys
 import time
 from datetime import datetime
+from statistics import median, StatisticsError
 
 
 def esConnect(cid, user, passwd):
@@ -97,31 +99,73 @@ def start_reindex(es, source, destination, pipe):
     return response
 
 
-def get_inference_throughput(es, model):
+def mmm(nodesReport, funcs):
+    '''return min median max removing 0s'''
+
+    print('mmm')
+    print(nodesReport)
+
+    #funcs = {'min': min, 
+    #        'median' : median,
+    #        'max' : max
+    #        }
+
+    for node in nodesReport:
+        for met in nodesReport[node]:
+            tmpCalcs = {}
+            metList = nodesReport[node][met]
+            # removing 0's since we are concerned about metrics while processing, not general running stats
+            metList = [x for x in metList if x != 0]
+            
+            for func in funcs:
+                try:
+                    tmpCalcs[func] = funcs[func](metList)
+                except (ValueError, StatisticsError):
+                    # Report False if there were no stats or non-zero stats collected
+                    tmpCalcs[func] = False
+            nodesReport[node][met] = tmpCalcs
+
+    return (nodesReport)
+
+
+## nodes = {'abc': {'i' : [222, ] , } }
+def get_trained_models_stats(es, model, metrics, nodesReport):
     ''' 
     call _stats to get average_inference_time_ms_last_minute` and `throughput_last_minute`
     This pulls the max accross all nodes
     TODO track max per node
     '''
 
-    i, t = [], []
+    newset = {m: [] for m in metrics}
+
+    print('nodesReport')
+    print(nodesReport)
     response = MlClient.get_trained_models_stats(es, model_id=model)
     #print(response)
-    for m in response['trained_model_stats']:
-        for n in m['deployment_stats']['nodes']:
-            try:
-                i.append(n['average_inference_time_ms_last_minute'])
-            except KeyError:
-                i.append(0)
-            try:
-                t.append(n['throughput_last_minute'])
-            except KeyError:
-                t.append(0)
+    for stats in response['trained_model_stats']:
+        print(stats)
+        for node_data in stats['deployment_stats']['nodes']:
+            print(node_data)
+            # assuming there is only one node inside deployment_stat.nodes.0.node
+            node_name = node_data['node'][list(node_data['node'].keys())[0]]['name']
 
-    return (max(i), max(t))
+            tmpNodeStats = nodesReport.setdefault(node_name, newset)
+
+            # append the current metric value on to the existing list
+            for m in metrics:
+                try:
+                    tmpNodeStats[m].append(node_data[m])
+                except KeyError:
+                    pass
+
+            nodesReport[node_name] = tmpNodeStats
+
+    print('get_trained_models_stats complete')
+    print(nodesReport)
+    return (nodesReport)
 
 
-def wait_until_ingest_complete(es, response, model, wait=5):
+def wait_until_ingest_complete(es, response, model, metrics, funcs,  wait=5):
     '''
     poll every 'wait' seconds, return when reindex thread is complete
     default wait = 10 seconds
@@ -130,48 +174,62 @@ def wait_until_ingest_complete(es, response, model, wait=5):
     '''
 
     inference, throughput = [], []
+    nodesReport = {}
 
     while True:
         task_info = es.tasks.get(task_id=response['task'])
         if task_info['completed']:
-            it = get_inference_throughput(es, model)
-            inference.append(it[0])
-            throughput.append(it[1])
+            nodesReport = get_trained_models_stats(es, model, metrics, nodesReport)
             break
         else:
-            it = get_inference_throughput(es, model)
-            inference.append(it[0])
-            throughput.append(it[1])
+            nodesReport = get_trained_models_stats(es, model, metrics, nodesReport)
             time.sleep(wait)
 
-    inference, throughput = max(inference), max(throughput)
+    nodesReport = mmm(nodesReport, funcs)
+#    inference, throughput = max(inference), max(throughput)
 
-    #print(task_info)
-    return (task_info['task']['running_time_in_nanos'], inference, throughput)
+    print('wait_until_ingest_complete done')
+    print(nodesReport)
+    return (task_info['task']['running_time_in_nanos'], nodesReport)
 
 
 if __name__ == '__main__':
 
     # file output results name
     results = 'pipeline-results__' + str(datetime.now())
-    header = ('allocation x threads per allocation',
-                   '_reindex running_time_in_nanos in seconds',
-                   '_reindex running_time_in_nanos',
-                   'max average_inference_time_ms_last_minute',
-                   'max throughput_last_minute',
-                    'destination index name')
-    tmpResults = [','.join(header)]
-
+    #header = ('allocation x threads per allocation',
+    #          '_reindex running_time_in_nanos in seconds',
+    #          '_reindex running_time_in_nanos',
+    #          'min average_inference_time_ms_last_minute',
+    #          'median average_inference_time_ms_last_minute',
+    #          'max average_inference_time_ms_last_minute',
+    #          'min throughput_last_minute', 'median throughput_last_minute',
+    #          'max throughput_last_minute', 'destination index name')
+    #resultsCollector = [','.join(header)]
+    resultsCollector = {}
+    
     # setup elastic cloud connection
     es_cloud_id = os.environ['es_cloud_id']
     es_cloud_user = os.environ['es_cloud_user']
     es_cloud_pass = os.environ['es_cloud_pass']
 
+    # metrics to collect from ml stats
+    metrics = [
+        'average_inference_time_ms_last_minute', 'throughput_last_minute'
+    ]
+
+    # math functions for reportin
+    funcs = {'min': min, 
+        'median' : median,
+        'max' : max
+        }
+
+
     # set the test pairs of allocations and threads per allocation on the supervised model
     allocation_threadsPer = [
-        [1,8],
         [1,1],
         [4,1],
+        [1,8],
         [8, 1],
         [1,4],
         [2,8],
@@ -220,24 +278,62 @@ if __name__ == '__main__':
         #print(reindexResponse)
 
         # wait for _reindex to complete
-        elapsed_time, inf_max, tp_max = wait_until_ingest_complete(es, reindexResponse, modelID)
-        #print(inf_max)
-        #print(tp_max)
+        elapsed_time, nodesReport = wait_until_ingest_complete(
+            es, reindexResponse, modelID, metrics)
 
-        #tmp = configString, ": ", elapsed_time / 1000000000, "seconds (", elapsed_time, " nanos), max thro"
-        tmp = ','.join(map(str, (configString, elapsed_time / 1000000000, elapsed_time, inf_max, tp_max, indexName)))
-        tmpResults.append(tmp)
-        print(tmp)
+        #nodesReport['running_time_in_nanos']
+        print()
+        print()
+        print('done with report, need to format this')
+        print(elapsed_time)
+        print(nodesReport)
+        
+        resultsCollector[configString] = {'running_time_in_nanos' : elapsed_time, 
+                                          'nodesReport' : nodesReport,
+                                          'allocations' : at[0],
+                                          'threads per allocation' : at[1]
+                                         }
 
+    
     print('Done with configuration options')
-    #print(tmpResults)
-    with open(results, "w") as file:
-        #file.writelines('\n'.join([''.join(map(str, x)) for x in tmpResults]))
-        file.writelines('\n'.join(tmpResults))
+    print(resultsCollector)
+
+    # Create csv output
+    resultsStr = ''
+    header = ['key', 'elapsed time (sec)', 'allocations', 'threads per allocation', 'instance name']
+    funcKeys=tuple(funcs.keys())
+
+    for met in metrics:
+        for func in funcKeys:
+            header.append(func + '( ' + met + ' )')
+    header = ','.join(header)
+    header += '\n
+        
+
+    for key in resultsCollector:
+        resultsStr += key
+        resultsStr += ',%.2f' % (elapsed_time / 1000000000)
+        resultsStr += ',' + str(resultsCollector[key]['allocations'])
+        resultsStr += ',' + str(resultsCollector[key]['threads per allocation'])
+        
+        for nodeName in resultsCollector[key]['nodesReport']:
+            resultsStr += ',' + nodeName
+
+            for met in metrics:
+                for func in funcs:
+                    resultsStr += ',' + '%.2f' %resultsCollector[key]['nodesReport'][nodeName][met][func]
+
+        resultsStr += '\n'
+
+    with open(results + .csv, "w") as c_file:
+        c_file.writelines(header)
+        c_file.writelines(resultsStr)
+
+    with open(results + .json, "w") as j_file:
+        json.dump(resultsCollector, j_file)
+
 
     print('Done')
-
-
 
 # TODO ideas
 '''
