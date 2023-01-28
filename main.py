@@ -67,7 +67,6 @@ def create_new_index(es, index_name):
     response = es.indices.create(index=index_name, body=index_settings)
     if not response['acknowledged']:
         response_content = response.json()
-        #print(response_content)
         sys.exit()
     else:
         return
@@ -102,14 +101,6 @@ def start_reindex(es, source, destination, pipe):
 def mmm(nodesReport, funcs):
     '''return min median max removing 0s'''
 
-    print('mmm')
-    print(nodesReport)
-
-    #funcs = {'min': min, 
-    #        'median' : median,
-    #        'max' : max
-    #        }
-
     for node in nodesReport:
         for met in nodesReport[node]:
             tmpCalcs = {}
@@ -138,15 +129,11 @@ def get_trained_models_stats(es, model, metrics, nodesReport):
 
     newset = {m: [] for m in metrics}
 
-    print('nodesReport')
-    print(nodesReport)
     response = MlClient.get_trained_models_stats(es, model_id=model)
-    #print(response)
     for stats in response['trained_model_stats']:
-        print(stats)
         for node_data in stats['deployment_stats']['nodes']:
             print(node_data)
-            # assuming there is only one node inside deployment_stat.nodes.0.node
+            # there is only one node inside deployment_stat.nodes.0.node
             node_name = node_data['node'][list(node_data['node'].keys())[0]]['name']
 
             tmpNodeStats = nodesReport.setdefault(node_name, newset)
@@ -160,8 +147,6 @@ def get_trained_models_stats(es, model, metrics, nodesReport):
 
             nodesReport[node_name] = tmpNodeStats
 
-    print('get_trained_models_stats complete')
-    print(nodesReport)
     return (nodesReport)
 
 
@@ -186,26 +171,13 @@ def wait_until_ingest_complete(es, response, model, metrics, funcs,  wait=5):
             time.sleep(wait)
 
     nodesReport = mmm(nodesReport, funcs)
-#    inference, throughput = max(inference), max(throughput)
 
-    print('wait_until_ingest_complete done')
-    print(nodesReport)
     return (task_info['task']['running_time_in_nanos'], nodesReport)
 
 
 if __name__ == '__main__':
 
-    # file output results name
     results = 'pipeline-results__' + str(datetime.now())
-    #header = ('allocation x threads per allocation',
-    #          '_reindex running_time_in_nanos in seconds',
-    #          '_reindex running_time_in_nanos',
-    #          'min average_inference_time_ms_last_minute',
-    #          'median average_inference_time_ms_last_minute',
-    #          'max average_inference_time_ms_last_minute',
-    #          'min throughput_last_minute', 'median throughput_last_minute',
-    #          'max throughput_last_minute', 'destination index name')
-    #resultsCollector = [','.join(header)]
     resultsCollector = {}
     
     # setup elastic cloud connection
@@ -215,7 +187,8 @@ if __name__ == '__main__':
 
     # metrics to collect from ml stats
     metrics = [
-        'average_inference_time_ms_last_minute', 'throughput_last_minute'
+        'average_inference_time_ms_last_minute', 
+        'throughput_last_minute'
     ]
 
     # math functions for reportin
@@ -223,7 +196,6 @@ if __name__ == '__main__':
         'median' : median,
         'max' : max
         }
-
 
     # set the test pairs of allocations and threads per allocation on the supervised model
     allocation_threadsPer = [
@@ -258,14 +230,11 @@ if __name__ == '__main__':
 
     # Make go now
     for at in allocation_threadsPer:
-        #print(at)
         configString = 'x'.join(map(str, at))
-        #print(configString)
 
         # create new index name
         indexName = '__'.join([reindexName, pipelineName, runTS, configString])
 
-        #tmpResults.append(indexName)
         # create new index
         create_new_index(es, indexName)
 
@@ -275,18 +244,10 @@ if __name__ == '__main__':
         # kickoff _reindex
         reindexResponse = start_reindex(es, sourceIndex, indexName,
                                         pipelineName)
-        #print(reindexResponse)
 
         # wait for _reindex to complete
         elapsed_time, nodesReport = wait_until_ingest_complete(
             es, reindexResponse, modelID, metrics, funcs)
-
-        #nodesReport['running_time_in_nanos']
-        print()
-        print()
-        print('done with report, need to format this')
-        print(elapsed_time)
-        print(nodesReport)
         
         resultsCollector[configString] = {'running_time_in_nanos' : elapsed_time, 
                                           'nodesReport' : nodesReport,
@@ -326,11 +287,17 @@ if __name__ == '__main__':
 
         resultsStr += '\n'
 
-    with open(results + '.csv', "w") as c_file:
+
+    dir = 'results'
+    os.makedirs(dir, exist_ok=True)
+    
+    file_path = os.path.join(dir, results + '.csv',)    
+    with open(file_path, "w") as c_file:
         c_file.writelines(header)
         c_file.writelines(resultsStr)
 
-    with open(results + '.json', "w") as j_file:
+    file_path = os.path.join(dir, results + '.json',)
+    with open(file_path, "w") as j_file:
         json.dump(resultsCollector, j_file)
 
 
