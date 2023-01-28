@@ -8,8 +8,10 @@ from elasticsearch.client import MlClient
 import os
 import sys
 import time
+import json
 from datetime import datetime
 from statistics import median, StatisticsError
+
 
 
 def esConnect(cid, user, passwd):
@@ -61,8 +63,6 @@ def create_new_index(es, index_name):
     }
 
     # may want to set the mapping
-
-    #print(index_name)
 
     response = es.indices.create(index=index_name, body=index_settings)
     if not response['acknowledged']:
@@ -292,7 +292,7 @@ if __name__ == '__main__':
                                           'nodesReport' : nodesReport,
                                           'allocations' : at[0],
                                           'threads per allocation' : at[1],
-                                          'elapsed time seconds' : elapsed_time
+                                          'elapsed time seconds' : elapsed_time / 1000000000
                                          }
 
     
@@ -313,7 +313,7 @@ if __name__ == '__main__':
 
     for key in resultsCollector:
         resultsStr += key
-        resultsStr += ',%.2f' % (str(resultsCollector[key]['elapsed time seconds'] / 1000000000))
+        resultsStr += ',%.2f' % resultsCollector[key]['elapsed time seconds'] 
         resultsStr += ',' + str(resultsCollector[key]['allocations'])
         resultsStr += ',' + str(resultsCollector[key]['threads per allocation'])
         
