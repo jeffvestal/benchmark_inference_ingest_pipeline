@@ -303,13 +303,3 @@ if __name__ == '__main__':
 
     print('Done')
 
-# TODO ideas
-'''
-potential enhancement here could be to clone the testing pipeline on each config run
-then when it is complete, use the last ml _stats call to parse out 
-trained_model_stats[].ingest.pipeline.processors
-
-have an option to delete the indices created from _reindex
-
-fix deprecation warning
-'''
