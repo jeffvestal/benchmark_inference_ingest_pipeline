@@ -37,4 +37,12 @@ results are written to separate .csv and .json file formats
                                                  'throughput_last_minute': {'max': 376,
                                                                             'median': 367.0,
                                                                             'min': 315}}},
-                                                                            ```
+                                                                            
+```
+
+## csv partial example
+```
+key,elapsed time (sec),allocations,threads per allocation,instance name,min( average_inference_time_ms_last_minute ),median( average_inference_time_ms_last_minute ),max( average_inference_time_ms_last_minute ),min( throughput_last_minute ),median( throughput_last_minute ),max( throughput_last_minute )
+8x1,213.44,8,1,instance-0000000025,166.63,166.84,174.94,2496.00,2714.00,2845.00
+16x1,193.43,16,1,instance-0000000025,304.61,304.80,306.12,2719.00,3094.00,3111.00
+```
