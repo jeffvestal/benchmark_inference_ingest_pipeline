@@ -46,3 +46,29 @@ key,elapsed time (sec),allocations,threads per allocation,instance name,min( ave
 8x1,213.44,8,1,instance-0000000025,166.63,166.84,174.94,2496.00,2714.00,2845.00
 16x1,193.43,16,1,instance-0000000025,304.61,304.80,306.12,2719.00,3094.00,3111.00
 ```
+
+# Running
+Currently most of the configurations options are hardcoded in the script (I have an issue open to move them to a config file). 
+Elasticsearch connection info is set in environment variables. 
+
+## Env Variables
+- `es_cloud_id` : cloud id for ESS deployment
+- `es_cloud_user` : username with access to create indices and start/stop Trained ML Models
+- `es_cloud_pass` : password for above user
+
+## Variables in the script
+List of variables you may need to change to match your data:
+- `allocation_threadsPer` - pairs of allocation and threads per allocation to test
+- `sourceIndex` - source index in elastic to use for `_reindex` through the pipeline
+- `pipelineName` - ingest pipeline name
+- `modelID` - Trained ML model used in the ingest pipeline's inference processor
+
+## Setup
+1. Before running the first time, you need to have a source index that has not been previously run through the ingest pipeline. This source index will be used with `_reindex` for each run
+2. It is best to test with 1 ML node to test throuhput, then you can scale out from there. Ideally this will be a "full sized" node (in ESS that would be either 64 or 60 GB RAM)
+3. It is also ideal to not have other ML models started simply to fully max out a single node
+
+
+## Starting
+1. Set required environment variables
+2. run ./main.py
