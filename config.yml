@@ -5,13 +5,13 @@ metrics:
 
 # allocation and threads per allocation setting test pairs for the trained model
 allocation_threadsPer:
-#    - [1,1]
-#    - [4,1]
-#    - [1,8]
+    - [1,1]
+    - [4,1]
+    - [1,8]
     - [8, 1]
-#    - [1,4]
-#    - [2,8]
-#    - [4,4]
+    - [1,4]
+    - [2,8]
+    - [4,4]
     - [16, 1]
 
 # source index for _reindex
