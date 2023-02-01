@@ -11,7 +11,7 @@ import time
 import json
 from datetime import datetime
 from statistics import median, StatisticsError
-
+import yaml
 
 
 def esConnect(cid, user, passwd):
@@ -72,7 +72,7 @@ def create_new_index(es, index_name):
         return
 
 
-def start_reindex(es, source, destination, pipe):
+def start_reindex(es, source, destination, pipe, reindex_count):
     '''
     kick off _reindex after 60 second pause
     This is to allow the _last_minute metrics to 0 out
@@ -93,7 +93,7 @@ def start_reindex(es, source, destination, pipe):
     # Execute the reindex operation
     response = es.reindex(body=request_body,
                           wait_for_completion=False,
-                          max_docs=10000)
+                          max_docs=reindex_count)
 
     return response
 
@@ -177,6 +177,12 @@ def wait_until_ingest_complete(es, response, model, metrics, funcs,  wait=5):
 
 if __name__ == '__main__':
 
+    # get select variable settings from config file
+    with open("config.yml", "r") as file:
+        config = yaml.load(file, Loader=yaml.FullLoader)
+    print(config)
+
+    
     results = 'pipeline-results__' + str(datetime.now())
     resultsCollector = {}
     
@@ -186,44 +192,34 @@ if __name__ == '__main__':
     es_cloud_pass = os.environ['es_cloud_pass']
 
     # metrics to collect from ml stats
-    metrics = [
-        'average_inference_time_ms_last_minute', 
-        'throughput_last_minute'
-    ]
+    metrics = config['metrics']
 
-    # math functions for reportin
+    # math functions for reporting
     funcs = {'min': min, 
         'median' : median,
         'max' : max
         }
 
     # set the test pairs of allocations and threads per allocation on the supervised model
-    allocation_threadsPer = [
-        [1,1],
-        [4,1],
-        [1,8],
-        [8, 1],
-        [1,4],
-        [2,8],
-        [4,4],
-        [16, 1]
-    ]
+    allocation_threadsPer = config['allocation_threadsPer']
 
     # set source index name
-    sourceIndex = 'pii_test-no_redaction'
+    sourceIndex = config['sourceIndex']
 
     # set the base name of the test index set - reindexName__pipelineName__runTS__AxT
-    reindexName = 'pii_test_v2'
+    reindexName = config['reindexName']
     runTS = datetime.now().strftime('%Y%m%d_%H%M%S')
 
     # set the ingest pipeline to use
-    pipelineName = 'pii_script-redact-throuput_test_01'
+    pipelineName = config['pipelineName']
 
     # set the name of the supervised model_id used in the pipeline
     # TODO could be smarter and get this from the pipeline config automatically
-    modelID = 'dslim__bert-base-ner'
+    modelID = config['modelID']
 
-    #############
+    # number of docs to _reindex each iteration
+    reindex_count = config['reindex_count']
+
     # create elastic connection
     # TODO switch to apikey
     es = esConnect(es_cloud_id, es_cloud_user, es_cloud_pass)
@@ -243,7 +239,7 @@ if __name__ == '__main__':
 
         # kickoff _reindex
         reindexResponse = start_reindex(es, sourceIndex, indexName,
-                                        pipelineName)
+                                        pipelineName, reindex_count)
 
         # wait for _reindex to complete
         elapsed_time, nodesReport = wait_until_ingest_complete(
@@ -288,7 +284,7 @@ if __name__ == '__main__':
         resultsStr += '\n'
 
 
-    dir = 'results'
+    dir = config['dir']
     os.makedirs(dir, exist_ok=True)
     
     file_path = os.path.join(dir, results + '.csv',)    

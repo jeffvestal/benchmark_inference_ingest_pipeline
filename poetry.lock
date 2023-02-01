@@ -37,6 +37,14 @@ async = ["aiohttp (>=3,<4)"]
 requests = ["requests (>=2.4.0,<3.0.0)"]
 
 [[package]]
+name = "pyyaml"
+version = "6.0"
+description = "YAML parser and emitter for Python"
+category = "main"
+optional = false
+python-versions = ">=3.6"
+
+[[package]]
 name = "urllib3"
 version = "1.26.14"
 description = "HTTP library with thread-safe connection pooling, file post, and more."
@@ -52,10 +60,11 @@ socks = ["PySocks (>=1.5.6,!=1.5.7,<2.0)"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.10"
-content-hash = "1fcf6ba96a1f166dc4dfb874c34c28dedb3bff2c539ff32040e1c6c5a44b1fa5"
+content-hash = "4e60b01a6b5a3d1a45a2e9f9168f169f0a28d0e55cf45c432b0a53176b0fe697"
 
 [metadata.files]
 certifi = []
 elastic-transport = []
 elasticsearch = []
+pyyaml = []
 urllib3 = []

@@ -1,0 +1,33 @@
+# stat values from _ml/trained_models/_stats trained_model_stats.deployment_stats.nodes
+metrics: 
+    - 'average_inference_time_ms_last_minute'
+    - 'throughput_last_minute'
+
+# allocation and threads per allocation setting test pairs for the trained model
+allocation_threadsPer:
+#    - [1,1]
+#    - [4,1]
+#    - [1,8]
+    - [8, 1]
+#    - [1,4]
+#    - [2,8]
+#    - [4,4]
+    - [16, 1]
+
+# source index for _reindex
+sourceIndex: 'pii_test-no_redaction'
+
+# base name for dest index with _reindex
+reindexName: 'pii_test_v2'
+
+# name of ingest pipeline
+pipelineName: 'pii_script-redact-throuput_test_01'
+
+# supervised model_id use in inference processor
+modelID: 'dslim__bert-base-ner'
+
+# number of docs to _reindex
+reindex_count: 10000
+
+# directory to store results files
+dir: 'results'
