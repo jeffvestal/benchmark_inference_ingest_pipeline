@@ -12,6 +12,7 @@ import json
 from datetime import datetime
 from statistics import median, StatisticsError
 import yaml
+import copy
 
 
 def esConnect(cid, user, passwd):
@@ -101,8 +102,13 @@ def start_reindex(es, source, destination, pipe, reindex_count):
 def mmm(nodesReport, funcs):
     '''return min median max removing 0s'''
 
+    print('starting mmm')
+
+    nodesReportNew = copy.deepcopy(nodesReport)
+    
     for node in nodesReport:
         for met in nodesReport[node]:
+        
             tmpCalcs = {}
             metList = nodesReport[node][met]
             # removing 0's since we are concerned about metrics while processing, not general running stats
@@ -112,11 +118,13 @@ def mmm(nodesReport, funcs):
                 try:
                     tmpCalcs[func] = funcs[func](metList)
                 except (ValueError, StatisticsError):
+                  #  print('exception found')
                     # Report False if there were no stats or non-zero stats collected
                     tmpCalcs[func] = False
-            nodesReport[node][met] = tmpCalcs
+            nodesReportNew[node][met] = tmpCalcs
 
-    return (nodesReport)
+    print('done with mmm')
+    return (nodesReportNew)
 
 
 ## nodes = {'abc': {'i' : [222, ] , } }
@@ -130,23 +138,25 @@ def get_trained_models_stats(es, model, metrics, nodesReport):
     newset = {m: [] for m in metrics}
 
     response = MlClient.get_trained_models_stats(es, model_id=model)
+    print('response')
+    print(response)
+    
     for stats in response['trained_model_stats']:
         for node_data in stats['deployment_stats']['nodes']:
-            print(node_data)
             # there is only one node inside deployment_stat.nodes.0.node
             node_name = node_data['node'][list(node_data['node'].keys())[0]]['name']
-
-            tmpNodeStats = nodesReport.setdefault(node_name, newset)
-
+    
+            tmpNodeStats = nodesReport.setdefault(node_name, copy.deepcopy(newset))
+    
             # append the current metric value on to the existing list
             for m in metrics:
                 try:
                     tmpNodeStats[m].append(node_data[m])
                 except KeyError:
                     pass
-
+    
             nodesReport[node_name] = tmpNodeStats
-
+                
     return (nodesReport)
 
 
