@@ -13,9 +13,9 @@ allocation_threadsPer:
     - [2,8]
     - [4,4]
     - [16, 1]
-    - [16,2]
-    - [8,4]
-    - [4,8]
+#    - [16,2]
+#    - [8,4]
+#    - [4,8]
 
 # source index for _reindex
 sourceIndex: 'pii_test-no_redaction'
